@@ -7,13 +7,14 @@ fn handle_client(mut stream: TcpStream) -> Result<(), Error>{
     let mut buf = [0;512];//生成一个缓存数组
     println!("服务器在等待客户端发送消息");
     for _ in 0..1000{ //循环执行1000次
-       
         let byte_read = stream.read(&mut buf)?; //从数据流中读取数据存到buff
+        println!("{}",std::str::from_utf8(&buf[..byte_read]).expect("Could not write buffer as string"));//打印接收的字符串
         if byte_read ==  0 { //如果数据流为0返回Ok
             return Ok(());
         }
 
         stream.write(&buf[..byte_read])?; //将缓存的数组写回数据流并且发送
+        
         thread::sleep(time::Duration::from_secs(1 as u64));//休眠1s
     }
 
@@ -26,13 +27,16 @@ fn main()  -> std::io::Result<()>{
     let mut thread_vec: Vec<thread::JoinHandle<()>> = Vec::new();//基于线程管理生成一个线程数组
 
     for stream in listener.incoming(){//listener的incoming方法可以返回一个产生流序列的迭代器
-        let stream = stream.expect("failed!");//获取从客户端收到的数据
+        let stream: TcpStream= match stream{
+            Ok(stream) => stream,
+            Err(e)=>panic!("err"),
+        };
         let handle = thread::spawn(move||{
             handle_client(stream)//对数据流进行处理
             .unwrap_or_else(|Error| eprintln!("{:?}", Error));
         });
 
-        thread_vec.push(handle); //将处理结果放在线程数组上
+        thread_vec.push(handle); //将处理结果放在线程数组上     
     }
     
     for handle in thread_vec{ //依次执行处理结果，并加入到工作线程
